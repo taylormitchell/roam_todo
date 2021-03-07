@@ -38,12 +38,12 @@ Example ran on March 7th
 ### Archive todo
 ```
 >>> python roam_todo.py "{{[[TODO]]}} some task" "archive"
-{{[[TODO]]}} some task #Archive #.strikethrough
+{{[[TODO]]}} some task #Archive
 ```
 
 ## Using todos in Roam
 
 If today is March 7th, and we want to see all todos we have scheduled and/or due today or tomorrow, we can get a list of all those tasks with the following query:
 ```
-{{[[query]]:{and: {or:[[due: 2021-03-07]][[due: 2021-03-08]][[due: 2021-03-07]][[due: 2021-03-08]]} {not:{or:[[DONE]][[Archive]]]}}}}}
+{{[[query]]:{and: {or:[[due: 2021-03-07]][[due: 2021-03-08]][[scheduled: 2021-03-07]][[scheduled: 2021-03-08]]} {not:{or:[[DONE]][[Archive]]]}}}}}
 ```

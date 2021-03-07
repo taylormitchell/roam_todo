@@ -51,7 +51,6 @@ class RoamTodo:
         if self.archived:
             return
         self.block.append(PageTag("Archive"), add_whitespace=True) 
-        self.block.append(PageTag(".strikethrough"), add_whitespace=True) 
 
     def schedule(self, new_scheduled):
         if self.scheduled:
@@ -67,9 +66,17 @@ class RoamTodo:
     def set_due(self, due):
         self.due = due
 
-    def later(self, today=datetime.datetime.now().date()):
+    def later(self, date_rel=None):
+        """
+        Args:
+            date_rel (datetime.date): Date to reschedule "later" relative to.
+                Defaults to current scheduled date if there is one, otherwise defaults
+                to today's date.
+        """
+        if not date_rel:
+            date_rel = self.scheduled or datetime.datetime.now().date()
         self.interval = 2*self.interval if self.interval > 0 else 1
-        self.scheduled = today + datetime.timedelta(days=self.interval)
+        self.scheduled = date_rel + datetime.timedelta(days=self.interval)
         self.deferrals += 1
 
     def command(self, command):
