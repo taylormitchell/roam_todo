@@ -3,7 +3,7 @@ import argparse
 from dataclasses import dataclass
 import datetime 
 import parsedatetime
-from pyroam BlockContentKV, PageTag
+from pyroam import BlockContentKV, PageTag, KeyValue
 
 
 class RoamTodo:
@@ -50,8 +50,8 @@ class RoamTodo:
     def archive(self):
         if self.archived:
             return
-        self.block.append(PageTag("Archive")) 
-        self.block.append(PageTag(".strikethrough")) 
+        self.block.append(PageTag("Archive"), add_whitespace=True) 
+        self.block.append(PageTag(".strikethrough"), add_whitespace=True) 
 
     def schedule(self, new_scheduled):
         if self.scheduled:
@@ -78,6 +78,8 @@ class RoamTodo:
                 self.later()
             elif cmd == 'archive':
                 self.archive()
+            elif cmd == 'due to scheduled':
+                self.due_to_scheduled()
             else:
                 attr, date_string = self.parse_command(cmd)
                 date = text_to_datetime(date_string).date()
@@ -104,7 +106,7 @@ class RoamTodo:
 
     @classmethod
     def from_string(cls, string):
-        block = pyroam.BlockContentKV.from_string(string)
+        block = BlockContentKV.from_string(string)
         return cls(block)
 
     def to_string(self):
@@ -112,6 +114,11 @@ class RoamTodo:
 
     def __repr__(self):
         return repr(self.block)
+
+    def due_to_scheduled(self):
+        kv_due = self.block.get_kv_item("due")
+        if kv_due:
+            kv_due.key = "scheduled"
 
 
 def text_to_datetime(text):
@@ -134,36 +141,4 @@ def main():
 
 
 if __name__=="__main__":
-    block = BlockContentKV.from_string("{{[[TODO]]}} some todo [[due: 2021-03-07]]")
-    print(block.to_string())
-    block.set_kv("due", datetime.datetime(2021, 3, 20))
-    print(block.to_string())
-    block.set_kv("scheduled", datetime.datetime(2021, 3, 20))
-    print(block.to_string())
-
-    #main()
-
-
-    #todo = RoamTodo.from_string("{{[[TODO]]}} some todo")
-    #command = "schedule for tomorrow and due on next friday"
-    #print(command)
-    #subcommands = parse_command(command)
-    #for attr, cmd in subcommands.items():
-    #    if attr=="due":
-    #        todo.set_due()
-    #print(subcommands)
-
-    #todo = RoamTodo.from_string("{{[[TODO]]}} some todo")
-    #print(todo.to_string())
-    #todo.command("due 7 days and scheduled for tuesday")
-    #print(todo.to_string())
-    #todo.later(todo.scheduled)
-    #print(todo.to_string())
-    #todo.later(todo.scheduled)
-    #print(todo.to_string())
-    #todo.archive()
-    #print(todo.to_string())
-
-    #command = "schedule for tomorrow"
-    #commands = re.split("\s*(,|and)\s*", command) 
-    #print(commands)
+    main()
