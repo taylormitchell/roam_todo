@@ -1,51 +1,9 @@
+import re
 import argparse
 from dataclasses import dataclass
 import datetime 
 import parsedatetime
-from pyroam.content import BlockContentKV, PageTag
-
-
-@dataclass
-class Todo:
-    """Roam Todo"""
-    description: str
-    due: datetime.date
-    scheduled: datetime.date
-    done: bool = False
-    interval: int = 1
-    deferrals: int = 0
-    archived: bool = False
-
-    def reschedule(self, date):
-        self.scheduled = date
-        self.deferrals += 1
-
-
-        block_content.set_kv("schedule", self.__class__.__name__)
-        interval = block_content.set_default_kv("interval", self.init_interval)
-        due = dt.datetime.now() + dt.timedelta(days=interval)
-        block_content.set_default_kv("due", due)
-
-    def archive(self):
-        self.archived = True
-
-    def later(self, today=datetime.datetime.now().date()):
-        self.interval *= 2
-        self.scheduled = today + datetime.timedelta(days=self.interval)
-        self.deferrals += 1
-
-    def command(self, cmd):
-        if cmd == 'later':
-            self.later()
-        elif cmd == 'archive':
-            self.archive()
-        else:
-            date = text_to_datetime(cmd).date()
-            self.reschedule(date)
-
-    def __repr__(self):
-        state = "DONE" if self.done else "TODO"
-        return f"[{state}] {self.description} [scheduled: {self.scheduled}] [due: {self.due}] [archived: {self.archived}]"
+from pyroam BlockContentKV, PageTag
 
 
 class RoamTodo:
@@ -61,15 +19,22 @@ class RoamTodo:
         self.block.set_kv("scheduled", date)
 
     @property
+    def due(self):
+        return self.block.get_kv("due")
+    @due.setter
+    def due(self, date):
+        self.block.set_kv("due", date)
+
+    @property
     def deferrals(self):
-        return self.block.get_kv("deferrals")
+        return self.block.get_kv("deferrals", 0)
     @deferrals.setter
     def deferrals(self, num):
         self.block.set_kv("deferrals", num)
 
     @property
     def interval(self):
-        return self.block.get_kv("interval")
+        return self.block.get_kv("interval", 0)
     @interval.setter
     def interval(self, num):
         self.block.set_kv("interval", num)
@@ -88,31 +53,58 @@ class RoamTodo:
         self.block.append(PageTag("Archive")) 
         self.block.append(PageTag(".strikethrough")) 
 
-    def reschedule(self, new_scheduled):
-        scheduled = self.scheduled if type(self.scheduled) == datetime.date else self.scheduled.date()
-        diff = (new_scheduled - scheduled).days
-        self.scheduled = new_scheduled
-        self.deferrals += 1
-        if diff > 0:
-            self.interval = diff
+    def schedule(self, new_scheduled):
+        if self.scheduled:
+            prev_scheduled = self.scheduled if type(self.scheduled) == datetime.date else self.scheduled.date()
+            diff = (new_scheduled - prev_scheduled).days
+            self.scheduled = new_scheduled
+            if diff > 0:
+                self.interval = diff
+            self.deferrals += 1
+        else:
+            self.scheduled = new_scheduled
+
+    def set_due(self, due):
+        self.due = due
 
     def later(self, today=datetime.datetime.now().date()):
-        self.interval *= 2
+        self.interval = 2*self.interval if self.interval > 0 else 1
         self.scheduled = today + datetime.timedelta(days=self.interval)
         self.deferrals += 1
 
-    def command(self, cmd):
-        if cmd == 'later':
-            self.later()
-        elif cmd == 'archive':
-            self.archive()
-        else:
-            new_scheduled = text_to_datetime(cmd).date()
-            self.reschedule(new_scheduled)
+    def command(self, command):
+        for cmd in self.split_command(command):
+            if cmd == 'later':
+                self.later()
+            elif cmd == 'archive':
+                self.archive()
+            else:
+                attr, date_string = self.parse_command(cmd)
+                date = text_to_datetime(date_string).date()
+                if attr=="due":
+                    self.set_due(date)
+                elif attr=="schedule":
+                    self.schedule(date)
+                else:
+                    raise ValueError("Invalid command string")
+
+    @staticmethod
+    def parse_command(cmd):
+        date_string = re.search("^scheduled?(?:\s*for\s*)?(.*)", cmd)
+        if date_string:
+            return "schedule", date_string.groups()[0]
+        date_string = re.search("^due?(?:\s*on\s*)?(.*)", cmd)
+        if date_string:
+            return "due", date_string.groups()[0]
+        return "schedule", cmd
+
+    @staticmethod
+    def split_command(command):
+        return re.split("\s*and\s*|\s*,\s*", command) 
 
     @classmethod
     def from_string(cls, string):
-        block = BlockContentKV.from_string(string)
+        block = pyroam.BlockContentKV.from_string(string)
         return cls(block)
 
     def to_string(self):
@@ -142,4 +134,36 @@ def main():
 
 
 if __name__=="__main__":
-    main()
+    block = BlockContentKV.from_string("{{[[TODO]]}} some todo [[due: 2021-03-07]]")
+    print(block.to_string())
+    block.set_kv("due", datetime.datetime(2021, 3, 20))
+    print(block.to_string())
+    block.set_kv("scheduled", datetime.datetime(2021, 3, 20))
+    print(block.to_string())
+
+    #main()
+
+
+    #todo = RoamTodo.from_string("{{[[TODO]]}} some todo")
+    #command = "schedule for tomorrow and due on next friday"
+    #print(command)
+    #subcommands = parse_command(command)
+    #for attr, cmd in subcommands.items():
+    #    if attr=="due":
+    #        todo.set_due()
+    #print(subcommands)
+
+    #todo = RoamTodo.from_string("{{[[TODO]]}} some todo")
+    #print(todo.to_string())
+    #todo.command("due 7 days and scheduled for tuesday")
+    #print(todo.to_string())
+    #todo.later(todo.scheduled)
+    #print(todo.to_string())
+    #todo.later(todo.scheduled)
+    #print(todo.to_string())
+    #todo.archive()
+    #print(todo.to_string())
+
+    #command = "schedule for tomorrow"
+    #commands = re.split("\s*(,|and)\s*", command) 
+    #print(commands)
