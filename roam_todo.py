@@ -70,11 +70,11 @@ class RoamTodo:
         """
         Args:
             date_rel (datetime.date): Date to reschedule "later" relative to.
-                Defaults to current scheduled date if there is one, otherwise defaults
-                to today's date.
+                Defaults to today or the scheduled date - whichever is later.
         """
         if not date_rel:
-            date_rel = self.scheduled or datetime.datetime.now().date()
+            today = datetime.datetime.now()
+            date_rel = max(today, self.scheduled) if self.scheduled else today
         self.interval = 2*self.interval if self.interval > 0 else 1
         self.scheduled = date_rel + datetime.timedelta(days=self.interval)
         self.deferrals += 1
